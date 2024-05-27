@@ -28,10 +28,17 @@ typedef enum
     STATUS_MAX,         // ---
 } eEspnowStatus_t;
 
+typedef enum
+{
+    ROLE_CLIENT, // 客户端( USB )
+    ROLE_SERVER, // 服务端( 设备)
+    ROLE_MAX,
+} eEspnowRole_t;
+
 class EspnowManager : public Print
 {
 public:
-    EspnowManager(){};
+    EspnowManager(eEspnowRole_t role) { _role = role; }
     virtual ~EspnowManager(){};
 
     eEspnowStatus_t init(const String &deviceName);
@@ -40,7 +47,7 @@ public:
     eEspnowStatus_t init(const std::vector<String> &strs, uint8_t needPairClinentNumber);
 
     void setRegisterSendCB(esp_now_send_cb_t cb);
-    void setRegisterRecvCB(esp_now_recv_cb_t  cb);
+    void setRegisterRecvCB(esp_now_recv_cb_t cb);
 
     void setConnectFlag(bool isConnect);
     bool getPairFlag();
@@ -56,6 +63,7 @@ public:
     uint8_t getAlreadyPairClinentNumber();
 
 private:
+    eEspnowRole_t _role;
     bool _isConnect;
     bool _isPairUSB = false;
     uint8_t _needPairClinentNumber;

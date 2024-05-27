@@ -22,7 +22,28 @@
 
 eEspnowStatus_t EspnowManager::init(const String &deviceName)
 {
-    return init(deviceName, 1);
+    eEspnowStatus_t eRunStatus;
+    if (_role == ROLE_SERVER)
+    {
+        eRunStatus = init(deviceName, 1);
+    }
+    else if (_role == ROLE_CLIENT)
+    {
+        WiFi.mode(WIFI_AP);
+
+        String Prefix = deviceName;
+        String SSID = Prefix;
+        String Password = "FFFFFFFAQ";
+        bool result = WiFi.softAP(SSID.c_str(), Password.c_str(), ESPNOW_CHANNEL, 0);
+        if (result)
+            Serial.println("ESPNOW Client: " + String(SSID));
+        WiFi.disconnect();
+        if (esp_now_init() != ESP_OK)
+        {
+            eRunStatus = STATUS_ERROR;
+        }
+    }
+    return eRunStatus;
 }
 
 eEspnowStatus_t EspnowManager::init(const String &deviceName, uint8_t needPairClinentNumber)
@@ -39,31 +60,34 @@ eEspnowStatus_t EspnowManager::init(const String &deviceName1, const String &dev
 
 eEspnowStatus_t EspnowManager::init(const std::vector<String> &strs, uint8_t needPairClinentNumber)
 {
-    eEspnowStatus_t eRunStatus;
-    _needPairClinentNumber = needPairClinentNumber;
-    WiFi.mode(WIFI_STA);
-    WiFi.disconnect();
-    if (esp_now_init() != ESP_OK)
+    eEspnowStatus_t eRunStatus = STATUS_ERROR;
+    if (_role == ROLE_SERVER)
     {
-        Serial.println("Failed to initialize ESP-NOW");
-        eRunStatus = STATUS_ERROR;
-        return eRunStatus;
-    }
-
-    if (millis() - _lastTime > 1000)
-    {
-        // Serial.println(WiFi.macAddress());
-        _lastTime = millis();
-        if (_needPairClinentNumber != _alreadyPairClientNumber)
+        _needPairClinentNumber = needPairClinentNumber;
+        WiFi.mode(WIFI_STA);
+        WiFi.disconnect();
+        if (esp_now_init() != ESP_OK)
         {
-            // 调用 ScanForSlave 函数并传递传入的字符串向量作为参数
-            ScanForSlave(strs);
-            eRunStatus = STATUS_UNCONNECTED;
+            Serial.println("Failed to initialize ESP-NOW");
+            eRunStatus = STATUS_ERROR;
+            return eRunStatus;
         }
-        else
+
+        if (millis() - _lastTime > 1000)
         {
-            eRunStatus = STATUS_CONNECTED;
-            _isPairUSB = true;
+            // Serial.println(WiFi.macAddress());
+            _lastTime = millis();
+            if (_needPairClinentNumber != _alreadyPairClientNumber)
+            {
+                // 调用 ScanForSlave 函数并传递传入的字符串向量作为参数
+                ScanForSlave(strs);
+                eRunStatus = STATUS_UNCONNECTED;
+            }
+            else
+            {
+                eRunStatus = STATUS_CONNECTED;
+                _isPairUSB = true;
+            }
         }
     }
     return eRunStatus;
@@ -79,7 +103,7 @@ void EspnowManager::setRegisterSendCB(esp_now_send_cb_t cb)
     esp_now_register_send_cb(cb);
 }
 
-void EspnowManager::setRegisterRecvCB(esp_now_recv_cb_t  cb)
+void EspnowManager::setRegisterRecvCB(esp_now_recv_cb_t cb)
 {
     esp_now_register_recv_cb(cb);
 }
